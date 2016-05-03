@@ -5,27 +5,6 @@ var bb = require('batbelt'),
     hashish = require('hashish'),
     querystring = require('querystring');
 
-function defaultLogger() {
-  try {
-    var winston = require('winston')
-    var logger = new (winston.Logger)({
-      transports: [new (winston.transports.Console)({ level: 'error' })]
-    });
-
-  } catch(e) {
-    function log() {
-      console.warn('`npm install winston` or set logger in embedly for logging');
-    }
-    var logger = {
-      debug: bb.NOOP,
-      error: bb.NOOP,
-      warn: bb.NOOP
-    }
-  }
-  return logger;
-}
-
-
 // ## embedly ##
 //
 // Create an Embedly api object
@@ -59,10 +38,6 @@ function embedly(opts, callback) {
     servicesRegExp: null
   }, opts);
 
-  if (!this.config.logger) {
-    this.config.logger = defaultLogger();
-  }
-
   var self = this;
   hashish(this.config.apiVersion).forEach(function(version, action) {
     self[action] = function() {
@@ -79,7 +54,6 @@ function embedly(opts, callback) {
 
     request
       .get(url)
-      .set('User-Agent', this.config.userAgent)
       .set('Accept', 'application/json')
       .end(function(e, res) {
         if (!!e) return callback(e);
@@ -167,18 +141,10 @@ embedly.prototype.apiCall = function(endpoint, version, params, callback) {
       self = this;
 
   if (params.urls.length > 0) {
-    this.config.logger.debug('calling: ' + url + '?' + query);
-    // Appending our own querystring this way is complete and utter bullshit
-    // caused by this bug that is VERY VERY old (not to mention many others
-    // related to this braindamaged behavior). Since visionmedia has
-    // abandoned js, we should probably use a different http client lib.
-    //
-    // https://github.com/visionmedia/superagent/issues/128
     var req = request
       .get(url)
-      .set('User-Agent', this.config.userAgent)
       .set('Accept', 'application/json');
-    req.request().path += query;
+    req.query(params);
     req.end(function(e, res) {
         if (!!e) return callback(e)
         if (res.status >= 400) {
